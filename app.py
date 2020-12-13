@@ -1,29 +1,23 @@
-import flask
-from flask import request,render_template, jsonify
-import sqlite3
-import pandas as pd
-from flask import Markup
+from flask import Flask
+from flask_restful import Api
+from flask_jwt import JWT
+from datetime  import timedelta
 
-app = flask.Flask(__name__ , template_folder='templates')
-app.config["DEBUG"] = True
+from security import authenticate, identity
+from user import UserRegister
+from item import Item, ItemList
 
-#UPLOAD
+app = Flask(__name__)
+app.config['PROPAGATE_EXCEPTIONS'] = True
+app.config['JWT_EXPIRATION_DELTA'] = timedelta(seconds=1800)
+app.secret_key = 'jose'
+api = Api(app)
 
-@app.route('/upload', methods=['GET', 'POST'])
-def upload():
-    if request.method == 'POST':
-        df = pd.read_csv(request.files.get('file'))
-        #df.set_index(['OrderDate'], inplace=True)
-        df.index.name=None
-        df['OrderDate'] = pd.to_datetime(df['OrderDate'], format='%Y-%M-%d') 
+jwt = JWT(app, authenticate, identity)
 
-        summary = df.describe() 
+api.add_resource(Item, '/item/<string:name>')
+api.add_resource(ItemList, '/items')
+api.add_resource(UserRegister, '/register')
 
-
-
-        return render_template('index.html', shape=df.shape, columns = df.columns,correlation = df.corr().to_json() ,tables=[df.dtypes.to_frame().to_html(),summary.to_html(),df.to_html(),df.corr().to_html()],shape_of_data = 'shape of data',titles = ['','DataType of data','Description','DataPreview','Correlation Coefficient'])
-    return render_template("index.html")
-
-
-
-app.run()
+if __name__ == '__main__':
+    app.run(debug=True)  # important to mention debug=True
